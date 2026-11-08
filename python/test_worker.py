@@ -1,4 +1,5 @@
 import unittest
+from unittest.mock import patch
 
 from xploitscope_detector import analyze, module_descriptions
 from xploitscope_detector.worker import handle
@@ -33,7 +34,7 @@ class WorkerProtocolTests(unittest.TestCase):
                     {
                         "url": "https://local.test/",
                         "headers": {"Set-Cookie": "session=redacted; Path=/"},
-                        "body": "SQL syntax error in MySQL",
+                        "body": "You have an error in your SQL syntax; check the manual for your MySQL server version",
                         "reflected_values": [],
                     }
                 ]
@@ -78,7 +79,7 @@ class WorkerProtocolTests(unittest.TestCase):
                     {
                         "url": "https://local.test/path?token=secret&view=1#fragment",
                         "headers": {},
-                        "body": "SQL syntax error in MySQL",
+                        "body": "You have an error in your SQL syntax; check the manual for your MySQL server version",
                     }
                 ],
                 "modules": ["sqli"],
@@ -89,6 +90,104 @@ class WorkerProtocolTests(unittest.TestCase):
             result["findings"][0]["url"],
             "https://local.test/path?token=%5BREDACTED%5D&view=%5BREDACTED%5D",
         )
+
+    def test_sqli_ignores_generic_database_documentation(self):
+        result = analyze(
+            {
+                "observations": [
+                    {
+                        "url": "https://local.test/docs",
+                        "body": "PostgreSQL documentation says ERROR handling should be generic.",
+                    }
+                ],
+                "modules": ["sqli"],
+            }
+        )
+
+        self.assertEqual(result["findings"], [])
+
+    def test_sqli_detects_vendor_error_signatures(self):
+        samples = (
+            "You have an error in your SQL syntax; check the manual for your MySQL server version",
+            "sqlite3.OperationalError: no such table: users",
+            "ORA-00933: SQL command not properly ended",
+            "ERROR: syntax error at or near \"FROM\"",
+            "Unclosed quotation mark after the character string",
+        )
+        for body in samples:
+            with self.subTest(body=body):
+                result = analyze(
+                    {
+                        "observations": [{"url": "https://local.test/", "body": body}],
+                        "modules": ["sqli"],
+                    }
+                )
+                self.assertEqual(len(result["findings"]), 1)
+
+    def test_xss_ignores_benign_reflection(self):
+        result = analyze(
+            {
+                "observations": [
+                    {"url": "https://local.test/", "body": "Hello Alice", "reflected_values": ["Alice"]}
+                ],
+                "modules": ["xss"],
+            }
+        )
+
+        self.assertEqual(result["findings"], [])
+
+    def test_xss_ignores_html_escaped_reflection(self):
+        value = "<img src=x onerror=handler>"
+        result = analyze(
+            {
+                "observations": [
+                    {
+                        "url": "https://local.test/",
+                        "body": "&lt;img src=x onerror=handler&gt;",
+                        "reflected_values": [value],
+                    }
+                ],
+                "modules": ["xss"],
+            }
+        )
+
+        self.assertEqual(result["findings"], [])
+
+    def test_xss_flags_raw_active_markup_with_location(self):
+        value = "<img src=x onerror=handler>"
+        result = analyze(
+            {
+                "observations": [
+                    {
+                        "url": "https://local.test/",
+                        "body": "safe content\n" + value,
+                        "reflected_values": [value],
+                    }
+                ],
+                "modules": ["xss"],
+            }
+        )
+
+        self.assertEqual(len(result["findings"]), 1)
+        self.assertEqual(result["findings"][0]["location"], "response body, line 2")
+        self.assertEqual(result["findings"][0]["status"], "potential")
+
+    def test_failed_module_is_reported_and_other_checks_continue(self):
+        observation = {
+            "url": "https://local.test/",
+            "headers": {},
+            "body": "You have an error in your SQL syntax; check the manual for your MySQL server version",
+        }
+        with patch("xploitscope_detector.sqli.inspect", side_effect=RuntimeError("internal detail")):
+            result = analyze({"observations": [observation]})
+
+        self.assertEqual(result["module_errors"], [{
+            "module": "sqli",
+            "error": "RuntimeError",
+            "message": "Check failed at observation 0; remaining checks continued.",
+        }])
+        self.assertFalse(any(finding["module"] == "sqli" for finding in result["findings"]))
+        self.assertTrue(any(finding["module"] == "headers" for finding in result["findings"]))
 
     def test_rejects_empty_observations(self):
         with self.assertRaisesRegex(ValueError, "non-empty observations"):
@@ -101,7 +200,7 @@ class WorkerProtocolTests(unittest.TestCase):
                     {
                         "url": "http://local.test/",
                         "headers": {},
-                        "body": "SQL syntax error in MySQL",
+                        "body": "You have an error in your SQL syntax; check the manual for your MySQL server version",
                     }
                 ],
                 "modules": ["sqli"],
