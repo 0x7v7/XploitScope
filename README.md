@@ -75,7 +75,7 @@ Install Git, Go 1.22+, and Python 3.10+ if they are not already available.
 Clone the repository and run the installer:
 
 ```sh
-git clone https://github.com/xploitscope/xploitscope.git
+git clone https://github.com/0x7v7/XploitScope.git
 cd xploitscope
 sh scripts/install.sh
 xploitscope doctor
