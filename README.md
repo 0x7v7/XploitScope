@@ -12,16 +12,9 @@
 [![Mode](https://img.shields.io/badge/testing-passive%20by%20default-2E8B57?style=flat-square)](#safe-use)
 [![Price](https://img.shields.io/badge/price-free-brightgreen?style=flat-square)](#free-and-open-source)
 
-```text
- __  __     _     _ _   ___
- \ \/ /_ __| |___(_) |_/ __| __ ___ _ __  ___
-  >  <| '_ \ / _ \ |  _\__ \/ _/ _ \ '_ \/ -_)
- /_/\_\ .__/_\___/_|\__|___/\__\___/ .__/\___|
-      |_|                          |_|
 
-                 Developer : Hex
-                 Discord   : 0x7v7
-```
+<img width="963" height="533" alt="Screenshot 2026-11-09 010532" src="https://github.com/user-attachments/assets/87602d72-ab6f-4c14-8ccc-e9d750c01712" />
+
 
 [Quick Start](#quick-start) · [Features](#what-it-does) · [Usage](#usage) · [Safety](#safe-use)
 
