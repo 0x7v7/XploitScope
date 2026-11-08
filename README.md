@@ -76,7 +76,7 @@ Clone the repository and run the installer:
 
 ```sh
 git clone https://github.com/0x7v7/XploitScope.git
-cd xploitscope
+cd Xploitscope
 sh scripts/install.sh
 xploitscope doctor
 ```
