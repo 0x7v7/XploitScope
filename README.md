@@ -12,9 +12,16 @@
 [![Mode](https://img.shields.io/badge/testing-passive%20by%20default-2E8B57?style=flat-square)](#safe-use)
 [![Price](https://img.shields.io/badge/price-free-brightgreen?style=flat-square)](#free-and-open-source)
 
+```text
+ __  __     _     _ _   ___
+ \ \/ /_ __| |___(_) |_/ __| __ ___ _ __  ___
+  >  <| '_ \ / _ \ |  _\__ \/ _/ _ \ '_ \/ -_)
+ /_/\_\ .__/_\___/_|\__|___/\__\___/ .__/\___|
+      |_|                          |_|
 
-<img width="963" height="533" alt="Screenshot 2026-11-09 010532" src="https://github.com/user-attachments/assets/87602d72-ab6f-4c14-8ccc-e9d750c01712" />
-
+                 Developer : Hex
+                 Discord   : 0x7v7
+```
 
 [Quick Start](#quick-start) · [Features](#what-it-does) · [Usage](#usage) · [Safety](#safe-use)
 
@@ -64,10 +71,12 @@ notice condition and applicable laws still apply.
 
 ### Install on Kali Linux
 
-Install Go 1.22+ and Python 3.10+ if they are not already available, then run
-from the project directory:
+Install Git, Go 1.22+, and Python 3.10+ if they are not already available.
+Clone the repository and run the installer:
 
 ```sh
+git clone https://github.com/xploitscope/xploitscope.git
+cd xploitscope
 sh scripts/install.sh
 xploitscope doctor
 ```
@@ -76,6 +85,20 @@ The installer builds the CLI and installs it under `~/.local/bin`, with the
 Python worker under `${XDG_DATA_HOME:-~/.local/share}/xploitscope`. It does not
 use `sudo` or install system packages. Add `~/.local/bin` to your `PATH` if
 needed.
+
+### Build manually
+
+XploitScope is written in Go and Python, so **CMake is not used or required**.
+To build the Go CLI from the cloned repository:
+
+```sh
+go build -o ./xploitscope ./cmd/xploitscope
+./xploitscope doctor
+```
+
+Run the command from the repository root so the CLI can find the Python worker.
+For a normal system installation, use `sh scripts/install.sh` instead; it
+installs both the executable and the worker in their expected locations.
 
 ### Inspect an authorized website
 
@@ -140,13 +163,13 @@ Observations: 1 | Modules: access_control, cookies, cors, headers, sqli, ssrf, x
 --------------------------------------------------------------------
 Indicators: 2 | MEDIUM 1 | LOW 1
 
-[MEDIUM] 01. Database error text appears in the response
+[MEDIUM] 01. Database-specific error signature appears in the response
     Check:    sqli | OWASP A05:2025 Injection
     Triage:   potential | confidence 6/10
     URL:      https://app.example.test/item?id=%5BREDACTED%5D
     Location: response body, line 12
-    Evidence: SQL syntax error near 'MySQL'
-    Fix:      Review server-side error handling. This indicator alone does not confirm SQL injection.
+    Evidence: You have an error in your SQL syntax; check the manual for your MySQL server version
+    Fix:      Review server-side error handling and query parameterization. Error disclosure alone does not confirm SQL injection.
 ```
 
 ### Offline input format
@@ -185,10 +208,21 @@ URLs.
 | `headers` | Missing selected browser-security headers, verbose server headers, deprecated negotiated TLS | A header's absence is not automatically a vulnerability; app context matters |
 | `cookies` | Missing `Secure`, `HttpOnly`, or `SameSite` attributes | Cookie purpose and deployment context affect risk |
 | `cors` | Saved request/response evidence of reflected origins with credentials | Offline analysis only sees the headers present in the capture |
-| `sqli` | Recognizable database error text in a saved response | Error disclosure is not proof of SQL injection |
-| `xss` | Exact caller-supplied values reflected in a saved response | Does not send payloads or determine browser execution context |
+| `sqli` | Specific database error signatures in a saved response | Generic vendor mentions are ignored; error disclosure is not proof of SQL injection |
+| `xss` | Raw caller-supplied active markup reflected in a saved response | Ordinary text and HTML-escaped values are ignored; execution is not confirmed |
 | `access_control` | Manual-review reminder | No identity or authorization testing |
 | `ssrf` | Manual-review reminder | No URL-fetch or SSRF testing |
+
+SQLi matches require recognizable vendor error signatures; generic mentions of
+database names or `ERROR` text are not enough. XSS reflection is only reported
+when the supplied value contains active markup syntax and appears unescaped in
+the saved body. Escaped output and ordinary reflected text are ignored. These
+heuristics reduce common false positives but cannot establish browser
+execution or query control.
+
+If one detector raises an exception, the report names the failed check and its
+exception type; other checks continue. Findings from that failed detector are
+not reported.
 
 ### OWASP Top 10:2025
 
